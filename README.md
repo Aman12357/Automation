@@ -43,3 +43,36 @@ Dashboard: `cd frontend; npm install; npm run dev`. Start the Windows worker usi
 ## Phase 2 status
 Implemented: official YouTube metadata client, channel/playlist/video metadata endpoints, playlist persistence, protected rights-verification transition, rights inventory endpoint, publishing lock.
 Not implemented: media ingestion, clipping/highlight detection, FFmpeg rendering, rights-review UI, YouTube OAuth, upload/scheduling, cloud deployment. This is not yet an automated uploader.
+
+
+## Phase 3 — local clip renderer
+
+The Windows local worker now includes `clip_factory.py`. It only processes files placed manually in your local inbox; it never downloads footage from YouTube.
+
+1. Install FFmpeg and ensure `ffmpeg` and `ffprobe` work from PowerShell.
+2. Create `media/inbox/my-session/` and put one rights-cleared video in it, for example `source.mp4`.
+3. Add `rights_manifest.json` beside the video:
+```json
+{
+  "status": "verified",
+  "rights_holder": "Name of rights holder",
+  "evidence_reference": "Written permission or license reference",
+  "source_file": "source.mp4",
+  "editing_allowed": true,
+  "derivative_allowed": true,
+  "distribution_allowed": true,
+  "commercial_allowed": false,
+  "attribution_required": true
+}
+```
+4. From `local-worker`, run a dry-run first:
+```powershell
+py clip_factory.py --inbox ..\\media\\inbox --output ..\\media\\ready
+```
+5. After checking the planned time ranges and rights, render draft vertical clips:
+```powershell
+py clip_factory.py --inbox ..\\media\\inbox --output ..\\media\\ready --process
+```
+Add `--commercial` only when your license explicitly grants commercial use. The renderer makes 1080x1920 drafts with blurred side fill and selects candidate windows using a basic audio-intensity heuristic. It is not yet AI gameplay understanding; inspect each clip. It does not upload.
+
+The manifest is an operator declaration, not independent license validation. Keep the actual permission evidence and review it yourself. YouTube publishing remains disabled.
