@@ -1,65 +1,45 @@
-# GTA Shorts AI Factory — Phase 1
+# GTA Shorts AI Factory — Phase 2
 
-A safe hybrid foundation for monitoring a creator channel, recording source-rights evidence, managing processing jobs, and registering a Windows worker. This phase does **not** download YouTube videos, render clips, or publish uploads.
+A rights-first hybrid foundation for monitoring a creator channel and preparing authorized GTA Shorts workflows. Phase 2 adds official YouTube Data API metadata discovery and a protected manual rights-verification endpoint.
 
 ## Safety model
-- YouTube Data API is intended for public channel/playlist metadata only.
-- Media ingestion remains disabled until source permission/license evidence is verified.
-- The uploader is intentionally not implemented in Phase 1.
-- No OAuth tokens or API keys are committed.
-- A public video URL is not permission to download or republish footage.
+- YouTube Data API is used for public channel, playlist, and video metadata only.
+- This project does not download video/audio, bypass YouTube controls, or extract clips from third-party uploads.
+- A public video URL is not permission to download, edit, monetize, or republish footage.
+- Rights verification requires a separately configured reviewer token and human evidence review.
+- Publishing remains hard-disabled. No YouTube OAuth uploader is included.
 
 ## Stack
-- API: FastAPI + SQLAlchemy
-- Database: SQLite by default; PostgreSQL via DATABASE_URL
-- Dashboard: React + Vite
-- Windows worker: Python heartbeat client
+FastAPI + SQLAlchemy + HTTPX, SQLite by default (PostgreSQL supported), React + Vite dashboard, and a Windows Python heartbeat worker.
 
-## Quick start — API
+## API setup
 ```powershell
 cd backend
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 Copy-Item .env.example .env
+```
+Set `YOUTUBE_API_KEY` using a Google Cloud project with YouTube Data API v3 enabled. Set `RIGHTS_REVIEW_TOKEN` to a long random secret. Never commit your real .env file.
+```powershell
 uvicorn app.main:app --reload
 ```
-API: http://127.0.0.1:8000 | Docs: http://127.0.0.1:8000/docs
+API docs: http://127.0.0.1:8000/docs
 
-## Quick start — dashboard
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-Dashboard: http://localhost:5173
+## YouTube metadata endpoints
+- `GET /api/youtube/channels/{channel_id}` — public channel metadata and uploads playlist ID.
+- `GET /api/youtube/channels/{channel_id}/playlists` — public playlists; optional `page_token`.
+- `GET /api/youtube/playlists/{playlist_id}/videos` — public video metadata; optional `page_token`.
+- `GET /api/health` — API key and reviewer-token configuration status.
 
-## Quick start — local worker
-Start the API first:
-```powershell
-cd local-worker
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-$env:API_BASE_URL="http://127.0.0.1:8000"
-$env:WORKER_ID="windows-pc-01"
-py worker.py
-```
-
-## Creator channel
 Configured target: `UCX8pnu3DYUnx8qy8V_c6oHg`.
-The supplied URL is a channel URL, not a playlist URL. Public metadata discovery will be
-implemented using the official YouTube Data API. Set YOUTUBE_API_KEY in backend/.env when
-that integration is added. Do not scrape or bypass access controls.
 
-## Rights workflow
-Each source must have a record of the rights holder, evidence reference, editing rights,
-derivative-work rights, distribution rights, commercial rights (if monetizing), attribution
-requirements, validity dates, and verification status. Processing must remain blocked until
-the required rights are explicitly granted and evidence has been checked by a person.
+## Rights review
+Create a pending record with `POST /api/permissions`. Manually inspect the actual license/permission evidence. Then call `POST /api/permissions/{id}/verify` with header `X-Rights-Review-Token: <your token>` and reviewer name. Editing, derivative-work, distribution permissions, rights-holder and evidence reference are required. The token gates the reviewer action; it does not itself prove a license is valid.
 
-## Phase 1 status
-Implemented: health/status API, channel target model, playlist and permission models, job and
-worker models, permission gate, worker heartbeat, starter dashboard.
-Not implemented: YouTube metadata client, permission review UI, media ingestion, highlight
-detection, FFmpeg rendering, YouTube OAuth, uploads, cloud deployment.
+## Dashboard and worker
+Dashboard: `cd frontend; npm install; npm run dev`. Start the Windows worker using the existing `local-worker/worker.py` instructions.
+
+## Phase 2 status
+Implemented: official YouTube metadata client, channel/playlist/video metadata endpoints, playlist persistence, protected rights-verification transition, rights inventory endpoint, publishing lock.
+Not implemented: media ingestion, clipping/highlight detection, FFmpeg rendering, rights-review UI, YouTube OAuth, upload/scheduling, cloud deployment. This is not yet an automated uploader.
